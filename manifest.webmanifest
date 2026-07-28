@@ -8,10 +8,10 @@
   "theme_color": "#FBF7ED",
   "icons": [
     {
-      "src": "./gomlife-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "./gomlife-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

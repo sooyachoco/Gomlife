@@ -1,5 +1,5 @@
-const CACHE_NAME = "gomlife-v1";
-const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./gomlife-icon.svg"];
+const CACHE_NAME = "gomlife-v2";
+const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./gomlife-icon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
