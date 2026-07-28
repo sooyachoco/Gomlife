@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#FBF7ED" />
     <meta name="description" content="다이어리, 일기장, 맛집지도로 이어지는 감성적인 모바일 랜딩페이지" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <title>오늘의 세 갈래</title>
     <style>
 
@@ -81,9 +82,21 @@ a {
 
 .brand {
   gap: 9px;
+  margin: -10px;
+  padding: 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  cursor: pointer;
+}
+
+.brand:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+  border-radius: 10px;
 }
 
 .brand-mark {
@@ -114,6 +127,24 @@ a {
 .brand-mark i:nth-child(3) {
   border-color: #d6a76d;
   transform: rotate(-28deg);
+}
+
+.install-toast {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  width: max-content;
+  max-width: calc(100% - 40px);
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: rgba(47, 57, 47, 0.92);
+  color: #fffdf7;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: 0 8px 24px rgba(47, 57, 47, 0.2);
 }
 
 .today {
@@ -505,9 +536,9 @@ footer small {
     <main class="mobile-stage">
       <div class="paper-shell">
         <header class="topbar">
-          <span class="brand" aria-hidden="true">
+          <button class="brand" id="installButton" type="button" aria-label="Gomlife 앱 설치" title="앱 설치">
             <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-          </span>
+          </button>
           <p class="today">
             <span class="sun" aria-hidden="true">✺</span>
             <span id="today">오늘</span>
@@ -551,6 +582,8 @@ footer small {
       </div>
     </main>
 
+    <div class="install-toast" id="installToast" role="status" aria-live="polite" hidden></div>
+
     <script>
       const today = new Intl.DateTimeFormat("ko-KR", {
         month: "long",
@@ -558,6 +591,55 @@ footer small {
         weekday: "short"
       }).format(new Date());
       document.querySelector("#today").textContent = today;
+
+      const installButton = document.querySelector("#installButton");
+      const installToast = document.querySelector("#installToast");
+      let deferredInstallPrompt = null;
+      let toastTimer = null;
+
+      const showInstallToast = (message) => {
+        window.clearTimeout(toastTimer);
+        installToast.textContent = message;
+        installToast.hidden = false;
+        toastTimer = window.setTimeout(() => {
+          installToast.hidden = true;
+        }, 2200);
+      };
+
+      window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+      });
+
+      installButton.addEventListener("click", async () => {
+        if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
+          showInstallToast("이미 홈 화면에 추가되어 있어요");
+          return;
+        }
+
+        if (deferredInstallPrompt) {
+          await deferredInstallPrompt.prompt();
+          const choice = await deferredInstallPrompt.userChoice;
+          deferredInstallPrompt = null;
+          if (choice.outcome === "accepted") {
+            showInstallToast("Gomlife를 홈 화면에 추가했어요");
+          }
+          return;
+        }
+
+        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          showInstallToast("공유 → ‘홈 화면에 추가’를 눌러 주세요");
+          return;
+        }
+
+        showInstallToast("브라우저 메뉴에서 ‘앱 설치’를 선택해 주세요");
+      });
+
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js").catch(() => {
+          showInstallToast("앱 설치 기능을 준비하지 못했어요");
+        });
+      }
     </script>
   </body>
 </html>
