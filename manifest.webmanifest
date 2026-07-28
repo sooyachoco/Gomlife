@@ -1,7 +1,6 @@
 {
-  "name": "오늘의 세 갈래",
+  "name": "안녕? 곰지연씨",
   "short_name": "Gomlife",
-  "description": "다이어리, 일기장, 맛집지도로 이어지는 나만의 기록 공간",
   "start_url": "/Gomlife/",
   "scope": "/Gomlife/",
   "display": "standalone",
