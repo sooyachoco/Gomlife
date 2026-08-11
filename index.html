@@ -530,6 +530,154 @@ footer small {
   }
 }
 
+
+.cup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(47, 57, 47, 0.55);
+  backdrop-filter: blur(10px);
+  transition: opacity 280ms ease, visibility 280ms ease;
+}
+
+.cup-overlay.is-closed {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.cup-popup {
+  width: min(100%, 420px);
+  max-height: calc(100svh - 40px);
+  overflow: auto;
+  padding: 22px 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 18px 14px, rgba(113, 130, 108, 0.055) 0 0.7px, transparent 0.9px),
+    radial-gradient(circle at 7px 29px, rgba(242, 179, 142, 0.06) 0 0.6px, transparent 0.8px),
+    var(--cream);
+  background-size: 34px 38px, 41px 47px, auto;
+  box-shadow: 0 24px 60px rgba(47, 57, 47, 0.28);
+}
+
+.cup-head {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.cup-head p {
+  margin: 0;
+}
+
+.cup-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.cup-meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cup-arena {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.cup-vs {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--sage-deep);
+}
+
+.cup-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  background: var(--ivory);
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.cup-choice:hover,
+.cup-choice:focus-visible {
+  border-color: var(--apricot);
+  box-shadow: 0 10px 24px rgba(242, 179, 142, 0.25);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.cup-choice img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 12px;
+  background: var(--sage-light);
+}
+
+.cup-choice span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.cup-result {
+  text-align: center;
+}
+
+.cup-result img {
+  width: min(72vw, 220px);
+  aspect-ratio: 1;
+  object-fit: cover;
+  margin: 8px auto 14px;
+  border-radius: 18px;
+  border: 2px solid var(--border);
+  box-shadow: 0 12px 28px rgba(47, 57, 47, 0.12);
+}
+
+.cup-result h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+}
+
+.cup-result p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cup-retry {
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sage-deep);
+  color: #fffdf7;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cup-retry:hover,
+.cup-retry:focus-visible {
+  background: #5f6f5a;
+  outline: none;
+}
+
     </style>
   </head>
   <body>
@@ -605,6 +753,32 @@ footer small {
     </main>
 
     <div class="install-toast" id="installToast" role="status" aria-live="polite" hidden></div>
+    <div class="cup-overlay" id="cupOverlay" role="dialog" aria-modal="true" aria-labelledby="cupTitle">
+      <div class="cup-popup">
+        <div class="cup-head">
+          <p class="cup-title" id="cupTitle">깜짝! 이상형 월드컵</p>
+          <p class="cup-meta" id="cupMeta">곰지연씨의 선택은?</p>
+        </div>
+        <div class="cup-arena" id="cupArena">
+          <button class="cup-choice" id="cupLeft" type="button">
+            <img alt="" id="cupLeftImg" />
+            <span id="cupLeftLabel"></span>
+          </button>
+          <span class="cup-vs" aria-hidden="true">VS</span>
+          <button class="cup-choice" id="cupRight" type="button">
+            <img alt="" id="cupRightImg" />
+            <span id="cupRightLabel"></span>
+          </button>
+        </div>
+        <div class="cup-result" id="cupResult" hidden>
+          <img alt="" id="cupWinnerImg" />
+          <h2 id="cupWinnerTitle"></h2>
+          <p id="cupWinnerDesc"></p>
+          <button class="cup-retry" id="cupRetry" type="button">다시 하기</button>
+        </div>
+      </div>
+    </div>
+
 
     <script>
       const today = new Intl.DateTimeFormat("ko-KR", {
@@ -661,6 +835,160 @@ footer small {
         navigator.serviceWorker.register("./sw.js").catch(() => {
           showInstallToast("앱 설치 기능을 준비하지 못했어요");
         });
+      }
+
+      const CUP_STORAGE_KEY = "gomlife-cup-cleared";
+      const CUP_WINNER_ID = "10";
+      const CUP_IMAGES = [
+        { id: "1", src: "./cup/1.jfif", label: "공유" },
+        { id: "2", src: "./cup/2.jfif", label: "현빈" },
+        { id: "3", src: "./cup/3.jfif", label: "구교환" },
+        { id: "4", src: "./cup/4.jfif", label: "정해인" },
+        { id: "5", src: "./cup/5.jfif", label: "박보검" },
+        { id: "6", src: "./cup/6.jfif", label: "최대훈" },
+        { id: "7", src: "./cup/7.jfif", label: "이준영" },
+        { id: "8", src: "./cup/8.jfif", label: "소지섭" },
+        { id: "9", src: "./cup/9.jfif", label: "박서준" },
+        { id: "10", src: "./cup/10.png", label: "이승수" },
+      ];
+
+      const cupOverlay = document.querySelector("#cupOverlay");
+      const cupMeta = document.querySelector("#cupMeta");
+      const cupArena = document.querySelector("#cupArena");
+      const cupResult = document.querySelector("#cupResult");
+      const cupLeft = document.querySelector("#cupLeft");
+      const cupRight = document.querySelector("#cupRight");
+      const cupLeftImg = document.querySelector("#cupLeftImg");
+      const cupRightImg = document.querySelector("#cupRightImg");
+      const cupLeftLabel = document.querySelector("#cupLeftLabel");
+      const cupRightLabel = document.querySelector("#cupRightLabel");
+      const cupWinnerImg = document.querySelector("#cupWinnerImg");
+      const cupWinnerTitle = document.querySelector("#cupWinnerTitle");
+      const cupWinnerDesc = document.querySelector("#cupWinnerDesc");
+      const cupRetry = document.querySelector("#cupRetry");
+
+      const shuffleCup = (items) => {
+        const list = [...items];
+        for (let i = list.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [list[i], list[j]] = [list[j], list[i]];
+        }
+        return list;
+      };
+
+      const createCupRound = (pool) => {
+        const matches = [];
+        let bye = null;
+
+        for (let i = 0; i < pool.length; i += 2) {
+          if (i + 1 < pool.length) {
+            matches.push([pool[i], pool[i + 1]]);
+          } else {
+            bye = pool[i];
+          }
+        }
+
+        return {
+          pool,
+          matches,
+          bye,
+          matchIndex: 0,
+          roundWinners: [],
+        };
+      };
+
+      let cupRound = null;
+
+      const closeCupOverlay = () => {
+        cupOverlay.classList.add("is-closed");
+        cupOverlay.setAttribute("aria-hidden", "true");
+        localStorage.setItem(CUP_STORAGE_KEY, "1");
+      };
+
+      const openCupOverlay = () => {
+        cupOverlay.classList.remove("is-closed");
+        cupOverlay.setAttribute("aria-hidden", "false");
+        cupArena.hidden = false;
+        cupResult.hidden = true;
+      };
+
+      const getCupRoundLabel = (count) => {
+        if (count <= 2) return "결승";
+        if (count <= 4) return "4강";
+        if (count <= 8) return "8강";
+        return "1라운드";
+      };
+
+      const renderCupMatch = () => {
+        const match = cupRound.matches[cupRound.matchIndex];
+        cupLeftImg.src = match[0].src;
+        cupLeftImg.alt = match[0].label;
+        cupLeftLabel.textContent = match[0].label;
+        cupRightImg.src = match[1].src;
+        cupRightImg.alt = match[1].label;
+        cupRightLabel.textContent = match[1].label;
+        cupMeta.textContent = `${getCupRoundLabel(cupRound.pool.length)} · ${cupRound.matchIndex + 1} / ${cupRound.matches.length}`;
+      };
+
+      const finishCupRound = () => {
+        if (cupRound.bye) {
+          cupRound.roundWinners.push(cupRound.bye);
+        }
+
+        if (cupRound.roundWinners.length === 1) {
+          const winner = cupRound.roundWinners[0];
+          if (winner.id === CUP_WINNER_ID) {
+            closeCupOverlay();
+            return;
+          }
+
+          cupArena.hidden = true;
+          cupResult.hidden = false;
+          cupWinnerImg.src = winner.src;
+          cupWinnerImg.alt = winner.label;
+          cupWinnerTitle.textContent = `${winner.label} 우승!`;
+          cupWinnerDesc.textContent = "이승수가 우승해야 입장할 수 있어요. 다시 도전해 볼까요?";
+          return;
+        }
+
+        cupRound = createCupRound(shuffleCup(cupRound.roundWinners));
+        renderCupMatch();
+      };
+
+      const pickCupWinner = (winner) => {
+        cupRound.roundWinners.push(winner);
+        cupRound.matchIndex += 1;
+
+        if (cupRound.matchIndex >= cupRound.matches.length) {
+          finishCupRound();
+          return;
+        }
+
+        renderCupMatch();
+      };
+
+      const startCupGame = () => {
+        openCupOverlay();
+        cupRound = createCupRound(shuffleCup(CUP_IMAGES));
+        renderCupMatch();
+      };
+
+      cupLeft.addEventListener("click", () => {
+        if (cupArena.hidden) return;
+        pickCupWinner(cupRound.matches[cupRound.matchIndex][0]);
+      });
+
+      cupRight.addEventListener("click", () => {
+        if (cupArena.hidden) return;
+        pickCupWinner(cupRound.matches[cupRound.matchIndex][1]);
+      });
+
+      cupRetry.addEventListener("click", startCupGame);
+
+      if (localStorage.getItem(CUP_STORAGE_KEY) === "1") {
+        closeCupOverlay();
+      } else {
+        startCupGame();
       }
     </script>
   </body>
