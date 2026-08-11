@@ -544,6 +544,13 @@ footer small {
   transition: opacity 280ms ease, visibility 280ms ease;
 }
 
+
+html.cup-cleared #cupOverlay {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .cup-overlay.is-closed {
   opacity: 0;
   visibility: hidden;
@@ -679,6 +686,13 @@ footer small {
 }
 
     </style>
+    <script>
+      try {
+        if (localStorage.getItem("gomlife-cup-cleared") === "1") {
+          document.documentElement.classList.add("cup-cleared");
+        }
+      } catch (error) {}
+    </script>
   </head>
   <body>
     <main class="mobile-stage">
@@ -899,13 +913,30 @@ footer small {
 
       let cupRound = null;
 
+      const hasCupCleared = () => {
+        try {
+          return localStorage.getItem(CUP_STORAGE_KEY) === "1";
+        } catch (error) {
+          return false;
+        }
+      };
+
       const closeCupOverlay = () => {
+        try {
+          localStorage.setItem(CUP_STORAGE_KEY, "1");
+        } catch (error) {}
+        document.documentElement.classList.add("cup-cleared");
         cupOverlay.classList.add("is-closed");
         cupOverlay.setAttribute("aria-hidden", "true");
-        localStorage.setItem(CUP_STORAGE_KEY, "1");
+        cupOverlay.hidden = true;
+        window.setTimeout(() => {
+          cupOverlay.remove();
+        }, 300);
       };
 
       const openCupOverlay = () => {
+        if (hasCupCleared()) return;
+        cupOverlay.hidden = false;
         cupOverlay.classList.remove("is-closed");
         cupOverlay.setAttribute("aria-hidden", "false");
         cupArena.hidden = false;
@@ -968,6 +999,7 @@ footer small {
       };
 
       const startCupGame = () => {
+        if (hasCupCleared()) return;
         openCupOverlay();
         cupRound = createCupRound(shuffleCup(CUP_IMAGES));
         renderCupMatch();
@@ -985,7 +1017,7 @@ footer small {
 
       cupRetry.addEventListener("click", startCupGame);
 
-      if (localStorage.getItem(CUP_STORAGE_KEY) === "1") {
+      if (hasCupCleared()) {
         closeCupOverlay();
       } else {
         startCupGame();
