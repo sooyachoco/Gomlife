@@ -1,0 +1,50 @@
+name: Sync Gomlife from gomlife2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Gomlife
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Copy gomlife2 site except cup and workflows
+        run: |
+          git clone --depth 1 https://github.com/sooyachoco/gomlife2.git /tmp/gomlife2
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          src = Path('/tmp/gomlife2')
+          dst = Path('.')
+
+          for item in src.iterdir():
+              if item.name in {'.git', '.github', 'cup'}:
+                  continue
+              target = dst / item.name
+              if item.is_dir():
+                  shutil.copytree(item, target, dirs_exist_ok=True)
+              else:
+                  shutil.copy2(item, target)
+          PY
+
+      - name: Commit replacement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to sync"
+            exit 0
+          fi
+          git commit -m "Replace Gomlife with gomlife2"
+          git push
