@@ -1,0 +1,93 @@
+name: Fix Susi banner image
+
+on:
+  workflow_run:
+    workflows: ["Sync Gomlife from gomlife2"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  fix-and-deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout current Gomlife
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Convert banner to a real image file
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, re
+          workflow = Path('.github/workflows/sync-from-gomlife2.yml').read_text(encoding='utf-8')
+          match = re.search(r'BANNER_B64:\s*"([^"]+)"', workflow)
+          if not match:
+              raise SystemExit('BANNER_B64 not found')
+          data = base64.b64decode(''.join(match.group(1).split()))
+          Path('susi2027-banner.webp').write_bytes(data)
+          print('Wrote susi2027-banner.webp:', len(data), 'bytes')
+          PY
+
+      - name: Replace inline banner with real image
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = 'susi2027-banner'
+          pattern = re.compile(r'<div id=["\']susi2027-banner["\'][\s\S]*?</div>\s*', re.I)
+          s, removed = pattern.subn('', s, count=1)
+          if removed == 0:
+              print('Existing banner marker not found; appending fresh banner.')
+          banner = '''<div id="susi2027-banner" style="width:100%;margin:28px 0 0;box-sizing:border-box;">
+            <a href="https://2027-susi.sooyachoco.workers.dev/" target="_blank" rel="noopener noreferrer" style="display:block;width:100%;line-height:0;text-decoration:none;">
+              <img src="susi2027-banner.webp" alt="2027 수시6 - 수시 지원 전략 분석 서비스" style="display:block;width:100%;height:auto;border-radius:24px;">
+            </a>
+          </div>'''
+          pos = s.lower().rfind('</body>')
+          if pos < 0:
+              raise SystemExit('index.html has no closing body tag')
+          s = s[:pos] + banner + '\n' + s[pos:]
+          p.write_text(s, encoding='utf-8')
+          print('Banner now uses /susi2027-banner.webp')
+          PY
+
+      - name: Commit fixed banner
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html susi2027-banner.webp
+          if git diff --cached --quiet; then
+            echo "No banner changes"
+          else
+            git commit -m "Fix 2027 Susi banner image"
+            git push
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
