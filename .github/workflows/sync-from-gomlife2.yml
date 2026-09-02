@@ -37,6 +37,43 @@ jobs:
                   shutil.copy2(item, target)
           PY
 
+      - name: Add 2027 Susi banner to bottom of page
+        env:
+          BANNER_B64: |
+            UklGRuS9AABXRUJQVlA4WAoAAAAQAAAA0wMAAQAAQUxQSBkAAAABH6CmbQAA3r8XJQAA
+            ...
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, os
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          # Keep the generated banner image embedded in the page so no paid storage is needed.
+          # The full base64 payload is supplied by the workflow environment.
+          b64 = ''.join(os.environ['BANNER_B64'].split())
+          if 'id="susi2027-banner"' in s:
+              print('Susi banner already present; replacing it')
+              start = s.index('<div id="susi2027-banner"')
+              end = s.index('</div>', start) + len('</div>')
+              s = s[:start] + s[end:]
+
+          banner = f'''<div id="susi2027-banner" style="width:100%;margin:28px 0 0;box-sizing:border-box;">
+            <a href="https://2027-susi.sooyachoco.workers.dev/" target="_blank" rel="noopener noreferrer" style="display:block;width:100%;line-height:0;text-decoration:none;">
+              <img src="data:image/webp;base64,{b64}" alt="2027 수시6 - 수시 지원 전략 분석 서비스" style="display:block;width:100%;height:auto;border-radius:24px;">
+            </a>
+          </div>'''
+
+          marker = '</body>'
+          pos = s.lower().rfind(marker)
+          if pos < 0:
+              raise SystemExit('index.html has no closing body tag')
+          s = s[:pos] + banner + '\n' + s[pos:]
+          p.write_text(s, encoding='utf-8')
+          print('2027 Susi banner added')
+          PY
+
       - name: Commit replacement
         run: |
           git config user.name "github-actions[bot]"
@@ -46,5 +83,5 @@ jobs:
             echo "No changes to sync"
             exit 0
           fi
-          git commit -m "Replace Gomlife with gomlife2"
+          git commit -m "Add 2027 Susi banner to Gomlife"
           git push
