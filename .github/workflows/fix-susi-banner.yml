@@ -1,4 +1,4 @@
-name: Fix Susi banner image
+name: Deploy Gomlife with chat banner
 
 on:
   workflow_run:
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  fix-and-deploy:
+  patch-and-deploy:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment:
@@ -29,54 +29,47 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Convert banner to a real image file
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import base64, re
-          workflow = Path('.github/workflows/sync-from-gomlife2.yml').read_text(encoding='utf-8')
-          match = re.search(r'BANNER_B64:\s*"([^"]+)"', workflow)
-          if not match:
-              raise SystemExit('BANNER_B64 not found')
-          data = base64.b64decode(''.join(match.group(1).split()))
-          Path('susi2027-banner.webp').write_bytes(data)
-          print('Wrote susi2027-banner.webp:', len(data), 'bytes')
-          PY
-
-      - name: Replace inline banner with real image
+      - name: Replace bottom banner with chat link
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
+
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          marker = 'susi2027-banner'
-          pattern = re.compile(r'<div id=["\']susi2027-banner["\'][\s\S]*?</div>\s*', re.I)
-          s, removed = pattern.subn('', s, count=1)
-          if removed == 0:
-              print('Existing banner marker not found; appending fresh banner.')
-          banner = '''<div id="susi2027-banner" style="width:100%;margin:28px 0 0;box-sizing:border-box;">
-            <a href="https://2027-susi.sooyachoco.workers.dev/" target="_blank" rel="noopener noreferrer" style="display:block;width:100%;line-height:0;text-decoration:none;">
-              <img src="susi2027-banner.webp" alt="2027 수시6 - 수시 지원 전략 분석 서비스" style="display:block;width:100%;height:auto;border-radius:24px;">
-            </a>
-          </div>'''
+          banner = '''<a href="https://gomchat.sooyachoco.workers.dev" style="display:block;text-decoration:none;margin:24px 16px 32px;padding:16px 20px;border:1px solid #eadfd5;border-radius:16px;background:#fffaf5;color:#49382f;text-align:center;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(73,56,47,.06);">💬 편안하게 대화해요 <span style="font-size:12px;font-weight:600;opacity:.65;">곰채팅으로 이동</span></a>'''
+
+          # Remove the existing bottom Susi banner by its stable id when present.
+          s, removed = re.subn(r'<div id=["\']susi2027-banner["\'][\s\S]*?</div>\s*', '', s, count=1, flags=re.I)
+          if removed:
+              print('Removed existing susi2027 banner')
+
+          # Also remove a final image-based anchor if the source sync inserted one without the id.
+          pattern = re.compile(r'<a\b[^>]*>(?:(?!</a>).)*?<img\b[^>]*>(?:(?!</a>).)*?</a>', re.I | re.S)
+          matches = list(pattern.finditer(s))
+          if matches:
+              m = matches[-1]
+              tail = s[m.start():m.end()]
+              if 'susi2027' in tail.lower() or '2027' in tail.lower() or '수시' in tail:
+                  s = s[:m.start()] + s[m.end():]
+                  print('Removed final Susi image anchor')
+
           pos = s.lower().rfind('</body>')
           if pos < 0:
               raise SystemExit('index.html has no closing body tag')
           s = s[:pos] + banner + '\n' + s[pos:]
           p.write_text(s, encoding='utf-8')
-          print('Banner now uses /susi2027-banner.webp')
           PY
 
-      - name: Commit fixed banner
+      - name: Commit banner change
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html susi2027-banner.webp
+          git add index.html
           if git diff --cached --quiet; then
             echo "No banner changes"
           else
-            git commit -m "Fix 2027 Susi banner image"
+            git commit -m "ui: replace bottom banner with chat link"
             git push
           fi
 
