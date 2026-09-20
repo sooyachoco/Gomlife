@@ -23,19 +23,14 @@ jobs:
 
           banner = '''<a href="https://gomchat.sooyachoco.workers.dev" style="display:block;text-decoration:none;margin:24px 16px 32px;padding:16px 20px;border:1px solid #eadfd5;border-radius:16px;background:#fffaf5;color:#49382f;text-align:center;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(73,56,47,.06);">💬 편안하게 대화해요 <span style="font-size:12px;font-weight:600;opacity:.65;">곰채팅으로 이동</span></a>'''
 
-          # Prefer the final anchor containing an image (the existing bottom banner).
-          matches = list(re.finditer(r'<a\\b[^>]*>\\s*(?:.|\\n)*?<img\\b[^>]*>\\s*(?:.|\\n)*?</a>', s, re.I))
-          if matches:
-              m = matches[-1]
-              s = s[:m.start()] + banner + s[m.end():]
-          else:
-              # Fallback: replace the final image element with a linked text banner.
-              imgs = list(re.finditer(r'<img\\b[^>]*>', s, re.I))
-              if not imgs:
-                  raise SystemExit('No existing banner image found; refusing to make a blind edit.')
-              m = imgs[-1]
-              s = s[:m.start()] + banner + s[m.end():]
+          # Replace the final anchor that contains an image, which corresponds to the bottom banner.
+          pattern = re.compile(r'<a\b[^>]*>(?:(?!</a>).)*?<img\b[^>]*>(?:(?!</a>).)*?</a>', re.I | re.S)
+          matches = list(pattern.finditer(s))
+          if not matches:
+              raise SystemExit('No image-based anchor found; refusing to make a blind edit.')
 
+          m = matches[-1]
+          s = s[:m.start()] + banner + s[m.end():]
           p.write_text(s, encoding='utf-8')
           PY
       - name: Commit banner change
