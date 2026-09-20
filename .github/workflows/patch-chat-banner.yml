@@ -1,17 +1,21 @@
 name: Update chat banner
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["Sync Gomlife from gomlife2"]
+    types: [completed]
 
 permissions:
   contents: write
 
 jobs:
   patch-banner:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Replace bottom banner
         run: |
           python3 <<'PY'
@@ -20,15 +24,12 @@ jobs:
 
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-
           banner = '''<a href="https://gomchat.sooyachoco.workers.dev" style="display:block;text-decoration:none;margin:24px 16px 32px;padding:16px 20px;border:1px solid #eadfd5;border-radius:16px;background:#fffaf5;color:#49382f;text-align:center;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(73,56,47,.06);">💬 편안하게 대화해요 <span style="font-size:12px;font-weight:600;opacity:.65;">곰채팅으로 이동</span></a>'''
 
-          # Replace the final anchor that contains an image, which corresponds to the bottom banner.
           pattern = re.compile(r'<a\b[^>]*>(?:(?!</a>).)*?<img\b[^>]*>(?:(?!</a>).)*?</a>', re.I | re.S)
           matches = list(pattern.finditer(s))
           if not matches:
               raise SystemExit('No image-based anchor found; refusing to make a blind edit.')
-
           m = matches[-1]
           s = s[:m.start()] + banner + s[m.end():]
           p.write_text(s, encoding='utf-8')
