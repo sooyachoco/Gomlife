@@ -1,4 +1,4 @@
-name: Restore Gomrecipe button
+name: Restore bottom chat banner
 
 on:
   workflow_run:
@@ -19,17 +19,36 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Restore Gomrecipe button
+      - name: Restore bottom chat banner and remove stray text
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
+
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          marker = 'id="gomrecipe-link"'
-          if marker not in s:
-              block = r'''\n<style id="gomrecipe-link-style">\n  #gomrecipe-link{display:flex;align-items:center;justify-content:center;width:min(92%,680px);margin:18px auto 28px;padding:13px 20px;border:1px solid rgba(112,82,62,.16);border-radius:16px;background:rgba(255,250,244,.88);box-shadow:0 4px 14px rgba(70,45,30,.08);color:#5b4030;text-decoration:none;font-weight:700;font-size:15px;box-sizing:border-box;-webkit-tap-highlight-color:transparent}\n  #gomrecipe-link:active{transform:scale(.99)}\n</style>\n<a id="gomrecipe-link" href="https://gomjiyeon-recipe-note.sooyachoco.workers.dev/" aria-label="곰레시피로 이동">🍳 곰레시피</a>\n'''
-              s = s.replace('</body>', block + '</body>', 1)
-              p.write_text(s, encoding='utf-8')
+
+          # Remove the extra bottom Gomrecipe link previously injected by the restore workflow.
+          s = re.sub(r'<style\s+id=["\']gomrecipe-link-style["\'][^>]*>.*?</style>\s*<a\s+id=["\']gomrecipe-link["\'][^>]*>.*?</a>', '', s, flags=re.I|re.S)
+          s = re.sub(r'\\n\\n\s*[🔍🍳]\s*곰레시피\\n', '', s)
+          s = re.sub(r'(?<![가-힣])\\n\\n\s*[🔍🍳]\s*곰레시피\\n', '', s)
+
+          banner = '''<a id="gomchat-bottom-banner" href="https://gomchat.sooyachoco.workers.dev" style="display:block;text-decoration:none;margin:24px 16px 32px;padding:16px 20px;border:1px solid #eadfd5;border-radius:16px;background:#fffaf5;color:#49382f;text-align:center;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(73,56,47,.06);box-sizing:border-box;">💬 편안하게 대화해요 <span style="font-size:12px;font-weight:600;opacity:.65;">곰채팅으로 이동</span></a>'''
+
+          # Remove a previous chat banner so repeated sync runs never duplicate it.
+          s = re.sub(r'<a\s+id=["\']gomchat-bottom-banner["\'][^>]*>.*?</a>', '', s, flags=re.I|re.S)
+
+          # Replace the final image-based banner (the 2027 Susi/banner image) with chat.
+          pattern = re.compile(r'<a\b[^>]*>(?:(?!</a>).)*?<img\b[^>]*>(?:(?!</a>).)*?</a>', re.I|re.S)
+          matches = list(pattern.finditer(s))
+          if matches:
+              m = matches[-1]
+              s = s[:m.start()] + banner + s[m.end():]
+          else:
+              # If the source sync no longer has an image banner, append chat once before body end.
+              s = s.replace('</body>', banner + '</body>', 1)
+
+          p.write_text(s, encoding='utf-8')
           PY
 
       - name: Commit if changed
@@ -40,6 +59,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes needed"
           else
-            git commit -m "fix: restore Gomrecipe button"
+            git commit -m "fix: restore bottom chat banner"
             git push origin main
           fi
