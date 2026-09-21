@@ -1,0 +1,45 @@
+name: Restore Gomrecipe button
+
+on:
+  workflow_run:
+    workflows: ["Sync Gomlife from gomlife2"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Restore Gomrecipe button
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = 'id="gomrecipe-link"'
+          if marker not in s:
+              block = r'''\n<style id="gomrecipe-link-style">\n  #gomrecipe-link{display:flex;align-items:center;justify-content:center;width:min(92%,680px);margin:18px auto 28px;padding:13px 20px;border:1px solid rgba(112,82,62,.16);border-radius:16px;background:rgba(255,250,244,.88);box-shadow:0 4px 14px rgba(70,45,30,.08);color:#5b4030;text-decoration:none;font-weight:700;font-size:15px;box-sizing:border-box;-webkit-tap-highlight-color:transparent}\n  #gomrecipe-link:active{transform:scale(.99)}\n</style>\n<a id="gomrecipe-link" href="https://gomjiyeon-recipe-note.sooyachoco.workers.dev/" aria-label="곰레시피로 이동">🍳 곰레시피</a>\n'''
+              s = s.replace('</body>', block + '</body>', 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "fix: restore Gomrecipe button"
+            git push origin main
+          fi
