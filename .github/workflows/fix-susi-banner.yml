@@ -29,7 +29,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Replace bottom banner with chat link
+      - name: Restore Gomrecipe button and replace bottom banner
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -37,7 +37,11 @@ jobs:
 
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          banner = '''<a href="https://gomchat.sooyachoco.workers.dev" style="display:block;text-decoration:none;margin:24px 16px 32px;padding:16px 20px;border:1px solid #eadfd5;border-radius:16px;background:#fffaf5;color:#49382f;text-align:center;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(73,56,47,.06);">💬 편안하게 대화해요 <span style="font-size:12px;font-weight:600;opacity:.65;">곰채팅으로 이동</span></a>'''
+          recipe = '''<a id="gomrecipe-link" href="https://gomjiyeon-recipe-note.sooyachoco.workers.dev/" style="display:block;text-decoration:none;margin:18px 16px 10px;padding:13px 20px;border:1px solid #eadfd5;border-radius:15px;background:#fffaf5;color:#5b4030;text-align:center;font-weight:700;font-size:15px;box-shadow:0 2px 8px rgba(73,56,47,.06);">🍳 곰레시피</a>'''
+          banner = '''<a href="https://gomchat.sooyachoco.workers.dev" style="display:block;text-decoration:none;margin:10px 16px 32px;padding:16px 20px;border:1px solid #eadfd5;border-radius:16px;background:#fffaf5;color:#49382f;text-align:center;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(73,56,47,.06);">💬 편안하게 대화해요 <span style="font-size:12px;font-weight:600;opacity:.65;">곰채팅으로 이동</span></a>'''
+
+          # Remove any existing generated recipe button so repeated syncs never duplicate it.
+          s = re.sub(r'<a\b[^>]*id=["\']gomrecipe-link["\'][\s\S]*?</a>\s*', '', s, count=1, flags=re.I)
 
           # Remove the existing bottom Susi banner by its stable id when present.
           s, removed = re.subn(r'<div id=["\']susi2027-banner["\'][\s\S]*?</div>\s*', '', s, count=1, flags=re.I)
@@ -57,19 +61,19 @@ jobs:
           pos = s.lower().rfind('</body>')
           if pos < 0:
               raise SystemExit('index.html has no closing body tag')
-          s = s[:pos] + banner + '\n' + s[pos:]
+          s = s[:pos] + recipe + '\n' + banner + '\n' + s[pos:]
           p.write_text(s, encoding='utf-8')
           PY
 
-      - name: Commit banner change
+      - name: Commit UI change
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
           if git diff --cached --quiet; then
-            echo "No banner changes"
+            echo "No UI changes"
           else
-            git commit -m "ui: replace bottom banner with chat link"
+            git commit -m "ui: restore Gomrecipe button"
             git push
           fi
 
