@@ -29,7 +29,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore Gomrecipe button and replace bottom banner
+      - name: Preserve source layout and append chat banner
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -37,31 +37,23 @@ jobs:
 
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          recipe = '''<a id="gomrecipe-link" href="https://gomjiyeon-recipe-note.sooyachoco.workers.dev/" style="display:block;text-decoration:none;margin:18px 16px 10px;padding:13px 20px;border:1px solid #eadfd5;border-radius:15px;background:#fffaf5;color:#5b4030;text-align:center;font-weight:700;font-size:15px;box-shadow:0 2px 8px rgba(73,56,47,.06);">🍳 곰레시피</a>'''
-          banner = '''<a href="https://gomchat.sooyachoco.workers.dev" style="display:block;text-decoration:none;margin:10px 16px 32px;padding:16px 20px;border:1px solid #eadfd5;border-radius:16px;background:#fffaf5;color:#49382f;text-align:center;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(73,56,47,.06);">💬 편안하게 대화해요 <span style="font-size:12px;font-weight:600;opacity:.65;">곰채팅으로 이동</span></a>'''
 
-          # Remove any existing generated recipe button so repeated syncs never duplicate it.
+          # Remove only the recipe button previously injected by this workflow.
+          # The real Gomrecipe card/button from gomlife2 must remain untouched.
           s = re.sub(r'<a\b[^>]*id=["\']gomrecipe-link["\'][\s\S]*?</a>\s*', '', s, count=1, flags=re.I)
 
-          # Remove the existing bottom Susi banner by its stable id when present.
-          s, removed = re.subn(r'<div id=["\']susi2027-banner["\'][\s\S]*?</div>\s*', '', s, count=1, flags=re.I)
-          if removed:
-              print('Removed existing susi2027 banner')
+          # Remove any previously injected bottom chat banner.
+          s = re.sub(r'<a\b[^>]*id=["\']gomchat-bottom-banner["\'][\s\S]*?</a>\s*', '', s, count=1, flags=re.I)
 
-          # Also remove a final image-based anchor if the source sync inserted one without the id.
-          pattern = re.compile(r'<a\b[^>]*>(?:(?!</a>).)*?<img\b[^>]*>(?:(?!</a>).)*?</a>', re.I | re.S)
-          matches = list(pattern.finditer(s))
-          if matches:
-              m = matches[-1]
-              tail = s[m.start():m.end()]
-              if 'susi2027' in tail.lower() or '2027' in tail.lower() or '수시' in tail:
-                  s = s[:m.start()] + s[m.end():]
-                  print('Removed final Susi image anchor')
+          # Remove the old Susi banner only by its stable container id.
+          s = re.sub(r'<div\b[^>]*id=["\']susi2027-banner["\'][\s\S]*?</div>\s*', '', s, count=1, flags=re.I)
+
+          banner = '''<a id="gomchat-bottom-banner" href="https://gomchat.sooyachoco.workers.dev" style="display:block;text-decoration:none;margin:18px 16px 32px;padding:16px 20px;border:1px solid #eadfd5;border-radius:16px;background:#fffaf5;color:#49382f;text-align:center;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(73,56,47,.06);box-sizing:border-box;">💬 편안하게 대화해요 <span style="font-size:12px;font-weight:600;opacity:.65;">곰채팅으로 이동</span></a>'''
 
           pos = s.lower().rfind('</body>')
           if pos < 0:
               raise SystemExit('index.html has no closing body tag')
-          s = s[:pos] + recipe + '\n' + banner + '\n' + s[pos:]
+          s = s[:pos] + banner + '\n' + s[pos:]
           p.write_text(s, encoding='utf-8')
           PY
 
@@ -73,7 +65,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No UI changes"
           else
-            git commit -m "ui: restore Gomrecipe button"
+            git commit -m "fix: preserve original Gomrecipe card"
             git push
           fi
 
