@@ -1,4 +1,4 @@
-name: Keep recipe card and bottom chat banner
+name: Legacy layout guard
 
 on:
   workflow_run:
@@ -6,56 +6,12 @@ on:
     types: [completed]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  restore:
+  guard:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Keep recipe card and add chat banner below all content
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          p = Path('index.html')
-          s = p.read_text(encoding='utf-8')
-
-          # Remove only the stray malformed recipe text from the old patch.
-          s = re.sub(r'\\n\\n\s*[🔍🍳]\s*곰레시피\\n', '', s)
-          s = re.sub(r'<[^>]*>\s*[🔍🍳]\s*곰레시피\s*</[^>]*>', '', s, flags=re.I|re.S)
-
-          # Never replace or remove the existing recipe card/banner from the source site.
-          # The chat banner is an additional element placed after all existing page content.
-          banner = '''<a id="gomchat-bottom-banner" href="https://gomchat.sooyachoco.workers.dev" style="display:block;text-decoration:none;margin:24px 16px 32px;padding:16px 20px;border:1px solid #eadfd5;border-radius:16px;background:#fffaf5;color:#49382f;text-align:center;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(73,56,47,.06);box-sizing:border-box;">💬 편안하게 대화해요 <span style="font-size:12px;font-weight:600;opacity:.65;">곰채팅으로 이동</span></a>'''
-
-          # Remove previous chat banner so repeated syncs never duplicate it.
-          s = re.sub(r'<a\s+id=["\']gomchat-bottom-banner["\'][^>]*>.*?</a>', '', s, flags=re.I|re.S)
-
-          # Append the chat banner at the very end of the document, after the existing recipe card.
-          if '</body>' in s:
-              s = s.replace('</body>', banner + '</body>', 1)
-          else:
-              s += banner
-
-          p.write_text(s, encoding='utf-8')
-          PY
-
-      - name: Commit if changed
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          if git diff --cached --quiet; then
-            echo "No changes needed"
-          else
-            git commit -m "fix: keep recipe card and place chat banner at bottom"
-            git push origin main
-          fi
+      - name: No-op
+        run: echo "Layout is maintained by fix-susi-banner.yml"
